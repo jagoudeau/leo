@@ -42,15 +42,17 @@ app.post('/', async (req, res) => {
 
   if (/^hello/i.test(cleanedMsg)) {
     botReply = `Hi ${name}! 👋`;
-  } else if (/who is the president/i.test(cleanedMsg)) {
-    botReply = 'As of July 2025, the President of the United States is Joe Biden.';
+  } else if (/when was our club founded/i.test(cleanedMsg)) {
+    botReply = '1946';
+  } else if (/when is the next meeting/i.test(cleanedMsg)) {
+    botReply = 'Meetings are usually the second Tuesday of each Month. 5:00 PM Social & Meeting from 6:00 PM to 7:00 PM';
   } else if (/^search /i.test(cleanedMsg)) {
     const query = cleanedMsg.replace(/^search\s+/i, '');
     botReply = await doWebSearch(query);
   } else if (OPENROUTER_API_KEY) {
     botReply = await aiChat(cleanedMsg, name);
   } else {
-    botReply = "Try saying '@leo hello', '@leo search ...', or enable OpenRouter API.";
+    botReply = "Sorry, Leo is sleeping. Please try again later.";
   }
 
   await ChatLog.create({
@@ -90,14 +92,14 @@ async function aiChat(msg, user) {
       {
         model: OPENROUTER_MODEL,
         messages: [
-          { role: 'system', content: 'You are a helpful GroupMe assistant.' },
+          { role: 'system', content: 'You are a helpful GroupMe assistant for a Lions Club in Gonzales, Louisiana.' },
           { role: 'user', content: `${user} says: ${msg}` }
         ]
       },
       {
         headers: {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://yourdomain.com',
+          'HTTP-Referer': 'https://www.gonzaleslions.org',
           'X-Title': 'GroupMe Bot'
         }
       }
@@ -105,7 +107,7 @@ async function aiChat(msg, user) {
     return res.data.choices[0].message.content.trim();
   } catch (err) {
     console.error('OpenRouter error:', err.response?.data || err.message);
-    return '🤖 AI is temporarily unavailable.';
+    return 'Leo AI functions are temporarily unavailable.';
   }
 }
 
