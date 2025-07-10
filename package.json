@@ -13,7 +13,7 @@
     "sqlite3": "^5.1.6",
     "sequelize": "^6.32.1",
     "adminjs": "^7.8.16",
-    "@adminjs/express": "^7.0.0",
+    "@adminjs/express": "^6.1.1",
     "@adminjs/sequelize": "^7.0.0",
     "@googleapis/customsearch": "^5.0.1"
   }
