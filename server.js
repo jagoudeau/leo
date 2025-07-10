@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import { customsearch } from '@googleapis/customsearch';
 import { ChatLog, initDb } from './models.js';
 import setupAdmin from './admin.js';
@@ -8,6 +8,7 @@ import setupAdmin from './admin.js';
 const app = express();
 app.use(express.json());
 
+// 🌐 Environment Variables
 const {
   GROUPME_BOT_ID,
   OPENAI_API_KEY,
@@ -15,17 +16,21 @@ const {
   GOOGLE_CSE_CX
 } = process.env;
 
+// 🤖 OpenAI Init (v4+)
 const openai = OPENAI_API_KEY
-  ? new OpenAIApi(new Configuration({ apiKey: OPENAI_API_KEY }))
+  ? new OpenAI({ apiKey: OPENAI_API_KEY })
   : null;
 
+// 🗃️ Init DB and Admin
 await initDb();
 await setupAdmin(app);
 
+// 🚦 Root Endpoint
 app.get('/', (req, res) => {
   res.send('🤖 GroupMe Bot is alive (ESM)!');
 });
 
+// 📩 GroupMe Callback
 app.post('/', async (req, res) => {
   const { sender_type, name, text } = req.body;
   if (sender_type === 'bot') return res.sendStatus(200);
@@ -46,6 +51,7 @@ app.post('/', async (req, res) => {
     botReply = "Try saying 'hello', 'search ...', or enable OpenAI for smarter chat.";
   }
 
+  // 🧾 Log to DB
   await ChatLog.create({
     user: name,
     message: userMsg,
@@ -53,10 +59,12 @@ app.post('/', async (req, res) => {
     timestamp: new Date()
   });
 
+  // 💬 Send Reply
   await sendMessage(botReply);
   res.sendStatus(200);
 });
 
+// 🔍 Google Search Function
 async function doWebSearch(q) {
   if (!GOOGLE_CSE_KEY || !GOOGLE_CSE_CX) return '🔍 Google search not configured.';
   try {
@@ -74,23 +82,25 @@ async function doWebSearch(q) {
   }
 }
 
+// 💡 AI Chat Function (OpenAI v4+)
 async function aiChat(msg, user) {
   try {
     const messages = [
       { role: 'system', content: 'You are a helpful GroupMe assistant.' },
       { role: 'user', content: `${user} says: ${msg}` }
     ];
-    const res = await openai.createChatCompletion({
+    const res = await openai.chat.completions.create({
       model: 'gpt-4',
       messages
     });
-    return res.data.choices[0].message.content;
+    return res.choices[0].message.content;
   } catch (err) {
     console.error('OpenAI error:', err.message);
     return 'AI error.';
   }
 }
 
+// 📤 GroupMe Send Function
 async function sendMessage(text) {
   try {
     await axios.post('https://api.groupme.com/v3/bots/post', {
@@ -102,5 +112,6 @@ async function sendMessage(text) {
   }
 }
 
+// 🚀 Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`📡 ESM Bot listening on port ${PORT}`));
