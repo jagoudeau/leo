@@ -1,6 +1,5 @@
 import express from 'express';
 import axios from 'axios';
-import OpenAI from 'openai';
 import { customsearch } from '@googleapis/customsearch';
 import { ChatLog, initDb } from './models.js';
 import setupAdmin from './admin.js';
@@ -8,50 +7,52 @@ import setupAdmin from './admin.js';
 const app = express();
 app.use(express.json());
 
-// 🌐 Environment Variables
 const {
   GROUPME_BOT_ID,
-  OPENAI_API_KEY,
+  OPENROUTER_API_KEY,
   GOOGLE_CSE_KEY,
   GOOGLE_CSE_CX
 } = process.env;
 
-// 🤖 OpenAI Init (v4+)
-const openai = OPENAI_API_KEY
-  ? new OpenAI({ apiKey: OPENAI_API_KEY })
-  : null;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct';
 
-// 🗃️ Init DB and Admin
 await initDb();
 await setupAdmin(app);
 
-// 🚦 Root Endpoint
+// 🧪 Health check
 app.get('/', (req, res) => {
-  res.send('🤖 GroupMe Bot is alive (ESM)!');
+  res.send('🤖 GroupMe Bot is alive (OpenRouter + @leo)');
 });
 
-// 📩 GroupMe Callback
+// 📩 GroupMe webhook
 app.post('/', async (req, res) => {
   const { sender_type, name, text } = req.body;
   if (sender_type === 'bot') return res.sendStatus(200);
 
   const userMsg = text.trim();
-  let botReply;
 
-  if (/^hello/i.test(userMsg)) {
-    botReply = `Hi ${name}! 👋`;
-  } else if (/who is the president/i.test(userMsg)) {
-    botReply = 'As of July 2025, the President of the United States is Joe Biden.';
-  } else if (/^search /i.test(userMsg)) {
-    const query = userMsg.replace(/^search\s+/i, '');
-    botReply = await doWebSearch(query);
-  } else if (openai) {
-    botReply = await aiChat(userMsg, name);
-  } else {
-    botReply = "Try saying 'hello', 'search ...', or enable OpenAI for smarter chat.";
+  // ✅ Respond only if "@leo" is present
+  if (!/@leo/i.test(userMsg)) {
+    return res.sendStatus(200);
   }
 
-  // 🧾 Log to DB
+  // 🧹 Strip "@leo" from the message before processing
+  const cleanedMsg = userMsg.replace(/@leo/gi, '').trim();
+  let botReply;
+
+  if (/^hello/i.test(cleanedMsg)) {
+    botReply = `Hi ${name}! 👋`;
+  } else if (/who is the president/i.test(cleanedMsg)) {
+    botReply = 'As of July 2025, the President of the United States is Joe Biden.';
+  } else if (/^search /i.test(cleanedMsg)) {
+    const query = cleanedMsg.replace(/^search\s+/i, '');
+    botReply = await doWebSearch(query);
+  } else if (OPENROUTER_API_KEY) {
+    botReply = await aiChat(cleanedMsg, name);
+  } else {
+    botReply = "Try saying '@leo hello', '@leo search ...', or enable OpenRouter API.";
+  }
+
   await ChatLog.create({
     user: name,
     message: userMsg,
@@ -59,12 +60,11 @@ app.post('/', async (req, res) => {
     timestamp: new Date()
   });
 
-  // 💬 Send Reply
   await sendMessage(botReply);
   res.sendStatus(200);
 });
 
-// 🔍 Google Search Function
+// 🔍 Google Search
 async function doWebSearch(q) {
   if (!GOOGLE_CSE_KEY || !GOOGLE_CSE_CX) return '🔍 Google search not configured.';
   try {
@@ -82,25 +82,34 @@ async function doWebSearch(q) {
   }
 }
 
-// 💡 AI Chat Function (OpenAI v4+)
+// 🧠 OpenRouter AI Chat
 async function aiChat(msg, user) {
   try {
-    const messages = [
-      { role: 'system', content: 'You are a helpful GroupMe assistant.' },
-      { role: 'user', content: `${user} says: ${msg}` }
-    ];
-    const res = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages
-    });
-    return res.choices[0].message.content;
+    const res = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: 'system', content: 'You are a helpful GroupMe assistant.' },
+          { role: 'user', content: `${user} says: ${msg}` }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://yourdomain.com',
+          'X-Title': 'GroupMe Bot'
+        }
+      }
+    );
+    return res.data.choices[0].message.content.trim();
   } catch (err) {
-    console.error('OpenAI error:', err.message);
-    return 'AI error.';
+    console.error('OpenRouter error:', err.response?.data || err.message);
+    return '🤖 AI is temporarily unavailable.';
   }
 }
 
-// 📤 GroupMe Send Function
+// 💬 Send to GroupMe
 async function sendMessage(text) {
   try {
     await axios.post('https://api.groupme.com/v3/bots/post', {
@@ -112,6 +121,5 @@ async function sendMessage(text) {
   }
 }
 
-// 🚀 Start Server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`📡 ESM Bot listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`📡 Bot is listening on port ${PORT}`));
