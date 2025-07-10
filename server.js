@@ -90,7 +90,7 @@ async function aiChat(msg, user) {
       { role: 'user', content: `${user} says: ${msg}` }
     ];
     const res = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo',
       messages
     });
     return res.choices[0].message.content;
