@@ -41,11 +41,13 @@ app.post('/', async (req, res) => {
   let botReply;
 
   if (/^hello/i.test(cleanedMsg)) {
-    botReply = `Hi ${name}! 👋`;
+    botReply = `Hi ${name}! 👋 What can I help you with?`;
   } else if (/when was our club founded/i.test(cleanedMsg)) {
     botReply = '1946';
   } else if (/when is the next meeting/i.test(cleanedMsg)) {
-    botReply = 'Meetings are usually the second Tuesday of each Month. 5:00 PM Social & Meeting from 6:00 PM to 7:00 PM';
+    botReply = 'Meetings are usually the second Tuesday of each Month. 5:00 PM Social & Meeting from 6:00 PM to 7:00 PM.';
+  } else if (/where is the next meeting/i.test(cleanedMsg)) {
+    botReply = 'Unfortunately that is a difficult question. Meeting locations change depending on the month. President @Toni Bergeron Hardy, can you please assist with this question?';
   } else if (/^search /i.test(cleanedMsg)) {
     const query = cleanedMsg.replace(/^search\s+/i, '');
     botReply = await doWebSearch(query);
@@ -92,7 +94,7 @@ async function aiChat(msg, user) {
       {
         model: OPENROUTER_MODEL,
         messages: [
-          { role: 'system', content: 'You are a helpful GroupMe assistant for a Lions Club in Gonzales, Louisiana.' },
+          { role: 'system', content: 'You are a helpful GroupMe assistant for the Gonzales Lions Club. The club was founded in 1943 and is located in Gonzales Lions Club.' },
           { role: 'user', content: `${user} says: ${msg}` }
         ]
       },
