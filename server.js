@@ -107,7 +107,7 @@ async function aiChat(msg, user) {
     return res.data.choices[0].message.content.trim();
   } catch (err) {
     console.error('OpenRouter error:', err.response?.data || err.message);
-    return 'Leo AI functions are temporarily unavailable.';
+    return 'Leo AI functions are temporarily unavailable. Please try my backup search function by typing "@leo search" with a keyword and I will try again.';
   }
 }
 
